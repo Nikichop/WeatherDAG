@@ -1,0 +1,52 @@
+version: '3.7'
+services:
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    logging:
+      options:
+        max-size: 10m
+        max-file: "3"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  webserver:
+    image: apache/airflow:2.1.2
+    restart: always
+    depends_on:
+      - postgres
+    env_file:
+      - config.env
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./tmp:/tmp
+    ports:
+      - "8080:8080"
+    entrypoint: >
+      /bin/bash -c "
+      airflow db init &&
+      (airflow users list | grep admin || airflow users create --role Admin --username Askan --email admin@gmail.com --firstname Admin --lastname Admin --password admin) &&
+      exec airflow webserver
+      "
+
+  scheduler:
+    image: apache/airflow:2.1.2
+    restart: always
+    depends_on:
+      - webserver
+    env_file:
+      - config.env
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./tmp:/tmp
+    command: scheduler
+
+volumes:
+  postgres_data:
